@@ -7,45 +7,26 @@ import { JwtService } from '@nestjs/jwt';
 
 import * as bcrypt from 'bcryptjs';
 import { User } from 'src/user/entities/user.entity';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { LoginUserDto } from 'src/user/dto/login-user.dto';
-import { UserService } from 'src/user/user.service';
+import { QueryBus } from '@nestjs/cqrs';
+import { GetUserQuery } from 'src/user/query/impl/get-user';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly queryBus: QueryBus,
   ) {}
 
-  async singUp(userDto: CreateUserDto) {
-    const candidate = await this.userService.findOneByUsername(
-      userDto.username,
-    );
-
-    if (candidate) return null;
-
-    const hashedPassword = await bcrypt.hash(userDto.password, 7);
-    const user = await this.userService.create({
-      ...userDto,
-      password: hashedPassword,
-    });
-
-    const tokens = await this.generateTokens(user.id);
-
-    return tokens;
-  }
-
-  async signIn(userDto: LoginUserDto) {
-    const user = await this.userService.findOneByUsername(userDto.username);
-
-    const tokens = await this.generateTokens(user.id);
-
-    return tokens;
-  }
-
   async validateUser(userDto: LoginUserDto): Promise<User> {
-    const user = await this.userService.findOneByUsername(userDto.username);
+    const user = await this.queryBus.execute(
+      new GetUserQuery(
+        {
+          username: userDto.username,
+        },
+        [],
+      ),
+    );
 
     if (!user) {
       throw new NotFoundException(`There is no user under this username`);
@@ -68,7 +49,6 @@ export class AuthService {
       });
       return payload;
     } catch (err) {
-      console.log(err);
       return null;
     }
   }
@@ -81,17 +61,7 @@ export class AuthService {
     return payload;
   }
 
-  async updateAccessToken(refreshToken: string) {
-    try {
-      const payload = this.verifyRefreshToken(refreshToken);
-      const tokens = await this.generateTokens(payload.id);
-      return tokens.accessToken;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  private async generateTokens(id: string) {
+  async generateTokens(id: string) {
     const payload = { id };
 
     const accessToken = this.jwtService.sign(payload, {

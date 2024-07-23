@@ -9,14 +9,14 @@ import {
 } from '@nestjs/websockets';
 
 import { Socket } from 'socket.io';
-
-import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 
 import { AddMessageDto } from './dto/add-message.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { ChatroomService } from 'src/chatroom/chatroom.service';
 import { LeaveRoomDto } from './dto/leave-room.dto';
+import { QueryBus } from '@nestjs/cqrs';
+import { GetUserQuery } from 'src/user/query/impl/get-user';
 
 @UsePipes(new ValidationPipe())
 @WebSocketGateway()
@@ -27,9 +27,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   connectedUsers: Map<string, string> = new Map();
 
   constructor(
-    private readonly userService: UserService,
     private readonly authService: AuthService,
     private readonly roomService: ChatroomService,
+    private readonly queryBus: QueryBus,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -37,7 +37,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const token = client.handshake.query.token.toString();
     const payload = await this.authService.verifyAccessToken(token);
 
-    const user = payload && (await this.userService.findOne(payload.id));
+    const user =
+      payload &&
+      (await this.queryBus.execute(
+        new GetUserQuery(
+          {
+            id: payload.id,
+          },
+          [],
+        ),
+      ));
 
     if (!user) {
       client.disconnect(true);
@@ -60,12 +69,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async onMessage(client: Socket, addMessageDto: AddMessageDto) {
     console.log('onMessage', addMessageDto);
     const userId = this.connectedUsers.get(client.id);
-    const user = await this.userService.findOne(userId);
-
     addMessageDto.userId = userId;
-
     await this.roomService.addMessage(addMessageDto);
-
     client.to(addMessageDto.room_code).emit('message', addMessageDto.text);
   }
 
