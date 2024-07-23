@@ -60,7 +60,7 @@ export class AuthController {
     return tokens;
   }
 
-  @Post('/update')
+  @Post('/refresh')
   async updateTokens(@Req() req: Request) {
     const { refreshToken } = req.cookies;
 
@@ -70,6 +70,6 @@ export class AuthController {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
 
-    return accessToken;
+    return { accessToken };
   }
 }

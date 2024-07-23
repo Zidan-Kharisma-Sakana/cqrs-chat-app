@@ -5,7 +5,6 @@ import { Repository } from 'typeorm';
 
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { Room } from 'src/chatroom/entities/room.entity';
 
 @Injectable()
 export class UserService {
@@ -20,10 +19,8 @@ export class UserService {
   }
 
   async findOne(id: string) {
-    const user = await this.userRepository.findOne({
-      where: {
-        id: id,
-      },
+    const user = await this.userRepository.findOneBy({
+      id: id,
     });
 
     if (!user) {
@@ -49,24 +46,5 @@ export class UserService {
     });
 
     return this.userRepository.save(user);
-  }
-
-  async updateUserRoom(id: string, room: Room) {
-    const user = await this.userRepository.preload({
-      id,
-      room,
-    });
-
-    if (!user) {
-      throw new NotFoundException(`There is no user under id ${id}`);
-    }
-
-    return this.userRepository.save(user);
-  }
-
-  async remove(id: string) {
-    const user = await this.findOne(id);
-
-    return this.userRepository.remove(user);
   }
 }

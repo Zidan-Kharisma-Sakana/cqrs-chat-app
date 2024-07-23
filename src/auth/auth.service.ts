@@ -63,13 +63,9 @@ export class AuthService {
 
   async verifyAccessToken(accessToken: string) {
     try {
-      console.log('Verifying access token', process.env.JWT_ACCESS_SECRET);
-      console.log(accessToken);
       const payload = await this.jwtService.verifyAsync(accessToken, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
-      console.log('payload', payload);
-
       return payload;
     } catch (err) {
       console.log(err);
@@ -87,10 +83,8 @@ export class AuthService {
 
   async updateAccessToken(refreshToken: string) {
     try {
-      const userId = this.verifyRefreshToken(refreshToken);
-
-      const tokens = await this.generateTokens(userId);
-
+      const payload = this.verifyRefreshToken(refreshToken);
+      const tokens = await this.generateTokens(payload.id);
       return tokens.accessToken;
     } catch (e) {
       return null;

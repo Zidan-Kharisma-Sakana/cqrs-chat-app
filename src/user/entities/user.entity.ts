@@ -2,35 +2,31 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  JoinTable,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
-
-import { Room } from 'src/chatroom/entities/room.entity';
 import { Message } from 'src/chatroom/entities/message.entity';
+import { Room } from 'src/chatroom/entities/room.entity';
 
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 20 })
+  @Column({ unique: true })
+  email: string;
+
+  @Column({ length: 20, unique: true })
   username: string;
 
   @Column({ length: 60 })
   password: string;
 
-  @Column()
-  avatar: string;
-
-  @Column()
-  is_admin: boolean;
-
-  @JoinTable()
-  @ManyToOne(() => Room, (room: Room) => room.users)
-  room: Room;
-
   @OneToMany(() => Message, (message: Message) => message.user)
   messages: Array<Message>;
+
+  @JoinTable({ name: 'user_to_room' })
+  @ManyToMany(() => Room, (room: Room) => room.users, { eager: true })
+  rooms: Array<Room>;
 }
